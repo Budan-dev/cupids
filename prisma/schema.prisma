@@ -1,0 +1,268 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  username  String   @unique
+  email     String   @unique
+  password  String
+  avatarUrl String?
+  role      Role     @default(USER)
+
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+
+  createdAt DateTime @default(now())
+
+  communities      CommunityMember[]
+
+  communityMessages CommunityMessage[]
+
+  sentMessages     PrivateMessage[] @relation("sentMessages")
+
+  receivedMessages PrivateMessage[] @relation("receivedMessages")
+
+  messageViews     MessageView[]
+
+  sessions         UserSession[]
+  notifications    Notification[]
+   
+   resetToken       String?  @unique
+   resetTokenExpiry DateTime?
+   adminPermissions AdminPermission[]
+   isBanned Boolean @default(false)
+   banReason String?
+bannedAt DateTime?
+unbanReason String?
+unbannedAt DateTime?
+userLogs  UserActivityLog[]
+adminLogs AdminActivityLog[]
+  @@map("user")
+}
+
+model UserSession {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  isActive     Boolean   @default(true)
+
+  @@map("user_session")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  message   String
+  type      String   @default("INFO")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notification")
+}
+
+model Community {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  createdAt   DateTime @default(now())
+
+  members     CommunityMember[]
+
+  messages    CommunityMessage[]
+  isBanned    Boolean  @default(false)
+  banReason   String?
+  bannedAt    DateTime?
+  unbanReason String?
+  unbannedAt  DateTime?
+
+  @@map("community")
+}
+
+model CommunityMember {
+  id          String   @id @default(uuid())
+
+  userId      String
+  communityId String
+
+  role        Role     @default(USER)
+
+  user        User      @relation(fields: [userId], references: [id])
+
+  community   Community @relation(fields: [communityId], references: [id])
+
+  joinedAt    DateTime @default(now())
+
+  @@unique([userId, communityId])
+
+  @@map("community_member")
+}
+
+model CommunityMessage {
+  id          String   @id @default(uuid())
+
+  content     String
+
+  senderId    String
+
+  sender      User @relation(fields: [senderId], references: [id])
+
+  communityId String
+
+  community   Community @relation(fields: [communityId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  views       MessageView[]
+
+  @@map("community_message")
+}
+
+model MessageView {
+  id          String   @id @default(uuid())
+
+  userId      String
+
+  user        User @relation(fields: [userId], references: [id])
+
+  messageId   String
+
+  message     CommunityMessage @relation(fields: [messageId], references: [id])
+
+  viewedAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+
+  @@map("message_view")
+}
+
+model PrivateMessage {
+  id          String   @id @default(uuid())
+
+  content     String
+
+  senderId    String
+
+  sender      User @relation("sentMessages", fields: [senderId], references: [id])
+
+  receiverId  String
+
+  receiver    User @relation("receivedMessages", fields: [receiverId], references: [id])
+
+  viewed      Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@map("private_message")
+}
+
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+
+  admins      AdminPermission[]
+
+  @@map("permission")
+}
+
+model AdminPermission {
+  id           String   @id @default(uuid())
+
+  userId       String
+  permissionId String
+
+  user         User        @relation(fields: [userId], references: [id])
+  permission   Permission  @relation(fields: [permissionId], references: [id])
+
+  @@unique([userId, permissionId])
+
+  @@map("admin_permission")
+}
+model Report {
+  id          String   @id @default(uuid())
+
+  reporterId  String
+  reportedUserId String?
+
+  messageId   String?
+  communityId String?
+
+  reason      String
+  status      String   @default("PENDING")
+
+  createdAt   DateTime @default(now())
+
+  @@map("report")
+}
+
+model UserActivityLog {
+  id        String   @id @default(uuid())
+
+  userId    String
+  action    String
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id])
+
+  @@map("user_activity_log")
+}
+
+model AdminActivityLog {
+  id          String   @id @default(uuid())
+
+  adminId     String
+  action      String
+
+  targetType  String?
+  targetId    String?
+
+  status      String   @default("SUCCESS")
+
+  ipAddress   String?
+  userAgent   String?
+
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  admin       User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([action])
+  @@index([targetType])
+  @@index([targetId])
+  @@index([createdAt])
+
+  @@map("admin_activity_log")
+}
