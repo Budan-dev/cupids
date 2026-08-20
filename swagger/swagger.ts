@@ -103,7 +103,7 @@ export const swaggerDocument = {
     description:
       "Authentication, community, messaging, and administration API for Cupid.",
   },
-  servers: [{ url: "http://localhost:8080", description: "Local development" }],
+  // servers: [{ url: "http://localhost:8080", description: "Local development" }],
   tags: [
     {
       name: "Universal",
